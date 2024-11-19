@@ -1,4 +1,4 @@
-import streamlit as st
+from flask import Flask, render_template, request
 import pandas as pd
 import joblib
 
@@ -7,46 +7,38 @@ model = joblib.load("random_forest_model.pkl")
 
 # Define the features
 selected_features = [
-    'concave points_worst', 
-    'perimeter_worst', 
-    'concave points_mean', 
-    'radius_worst', 
-    'perimeter_mean', 
-    'area_worst', 
+    'concave points_worst',
+    'perimeter_worst',
+    'concave points_mean',
+    'radius_worst',
+    'perimeter_mean',
+    'area_worst',
     'radius_mean'
 ]
 
-# Streamlit App
-st.title("Breast Cancer Prediction")
-st.write("""
-This app predicts whether a breast tumor is **Malignant (M)** or **Benign (B)** 
-based on selected features from the dataset.
-""")
+app = Flask(__name__)
 
-# Sidebar for input
-st.sidebar.header("Input Features")
+@app.route("/", methods=["GET", "POST"])
+def index():
+    prediction = None
+    user_input = {}
 
-# Initialize a dictionary to store user inputs
-user_data = {}
-for feature in selected_features:
-    user_data[feature] = st.sidebar.number_input(
-        f"{feature}:",
-        min_value=0.0,  # Set minimum value
-        max_value=100000.0,  # Set maximum value
-        value=0.0,  # Default value
-        step=0.1  # Increment step
-    )
+    if request.method == "POST":
+        try:
+            # Get input values from the form
+            for feature in selected_features:
+                user_input[feature] = float(request.form.get(feature, 0))
 
-# Convert user input to a DataFrame
-input_df = pd.DataFrame([user_data])
+            # Create a DataFrame from the input
+            input_df = pd.DataFrame([user_input])
 
-# Prediction button
-if st.button("Predict"):
-    # Predict using the loaded model
-    prediction = model.predict(input_df)[0]
+            # Make a prediction
+            prediction_result = model.predict(input_df)[0]
+            prediction = "Malignant (M)" if prediction_result == 1 else "Benign (B)"
+        except ValueError:
+            prediction = "Invalid input. Please enter numeric values."
 
-    # Display result
-    result = "Malignant (M)" if prediction == 1 else "Benign (B)"
-    st.success(f"The model predicts: **{result}**")
-    st.write("Feature Values Provided:")
-    st.write(input_df)
+    return render_template("index.html", features=selected_features, prediction=prediction)
+
+if __name__ == "__main__":
+    app.run(debug=True)
